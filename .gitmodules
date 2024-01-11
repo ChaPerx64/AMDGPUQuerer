@@ -1,0 +1,4 @@
+[submodule "ADLX"]
+	path = ADLX
+	url = git@github.com:GPUOpen-LibrariesAndSDKs/ADLX.git
+	branch = main
