@@ -1,7 +1,3 @@
-//
-// Copyright (c) 2021 - 2023 Advanced Micro Devices, Inc. All rights reserved.
-//
-//-------------------------------------------------------------------------------------------------
 
 /// \file mainPerfGPUMetrics.cpp
 /// \brief Demonstrates how to control GPU metrics when programming with ADLX.
@@ -9,6 +5,7 @@
 #include "SDK/ADLXHelper/Windows/Cpp/ADLXHelper.h"
 #include "SDK/Include/IPerformanceMonitoring.h"
 #include <iostream>
+#include <string>
 
 // Use ADLX namespace
 using namespace adlx;
@@ -21,132 +18,6 @@ static ADLXHelper g_ADLXHelp;
 // ASCII °
 static const signed char g_degree = 248;
 
-// Main menu
-void MainMenu();
-
-// Menu action control
-void MenuControl(IADLXPerformanceMonitoringServicesPtr perfMonitoringServices, IADLXGPUPtr oneGPU);
-
-// Wait for exit with error message
-int WaitAndExit(const char* msg, const int retCode);
-
-// Show GPU metrics range
-void ShowGPUMetricsRange(IADLXPerformanceMonitoringServicesPtr perfMonitoringServices, IADLXGPUPtr oneGPU);
-
-/*
- * If the app only requires the current metric set, metrics tracking can be omitted in favor of calling the more efficient GetCurrent function.
- * If the app also requires metrics history, GetHistory retrieves the required accumulated history buffer, that may also include the current metric set.
- */
-// Show current GPU metrics
-void ShowCurrentGPUMetrics(IADLXPerformanceMonitoringServicesPtr perfMonitoringServices, IADLXGPUPtr oneGPU);
-void ShowCurrentGPUMetricsFromHistorical(IADLXPerformanceMonitoringServicesPtr perfMonitoringServices, IADLXGPUPtr oneGPU);
-
-// Show historical GPU metrics
-void ShowHistoricalGPUMetrics(IADLXPerformanceMonitoringServicesPtr perfMonitoringServices, IADLXGPUPtr oneGPU);
-
-int main()
-{
-    ADLX_RESULT res = ADLX_FAIL;
-
-    // Initialize ADLX
-    res = g_ADLXHelp.Initialize();
-
-    if (ADLX_SUCCEEDED(res))
-    {
-        // Get Performance Monitoring services
-        IADLXPerformanceMonitoringServicesPtr perfMonitoringService;
-        res = g_ADLXHelp.GetSystemServices()->GetPerformanceMonitoringServices(&perfMonitoringService);
-        if (ADLX_SUCCEEDED(res))
-        {
-            IADLXGPUListPtr gpus;
-            // Get GPU list
-            res = g_ADLXHelp.GetSystemServices()->GetGPUs(&gpus);
-            if (ADLX_SUCCEEDED(res))
-            {
-                // Use the first GPU in the list
-                IADLXGPUPtr oneGPU;
-                res = gpus->At(gpus->Begin(), &oneGPU);
-                if (ADLX_SUCCEEDED(res))
-                {
-                    // Display main menu options
-                    MainMenu();
-                    // Get and execute the choice
-                    MenuControl(perfMonitoringService, oneGPU);
-                }
-                else
-                    std::cout << "\tGet particular GPU failed" << std::endl;
-            }
-            else
-                std::cout << "\tGet GPU list failed" << std::endl;
-        }
-        else
-            std::cout << "\tGet performance monitoring services failed" << std::endl;
-    }
-    else
-        return WaitAndExit("\tg_ADLXHelp initialize failed", 0);
-
-    // Destroy ADLX
-    res = g_ADLXHelp.Terminate();
-    std::cout << "Destroy ADLX result: " << res << std::endl;
-
-    // Pause to see the print out
-    system("pause");
-
-    return 0;
-}
-
-// Main menu
-void MainMenu()
-{
-    std::cout << "\tChoose one from the following options" << std::endl;
-
-    std::cout << "\t->Press 1 to display GPU metrics range" << std::endl;
-    std::cout << "\t->Press 2 to display current GPU metrics" << std::endl;
-    std::cout << "\t->Press 3 to display current GPU metrics from historical data" << std::endl;
-    std::cout << "\t->Press 4 to display historical GPU metrics" << std::endl;
-
-    std::cout << "\t->Press Q/q to terminate the application" << std::endl;
-    std::cout << "\t->Press M/m to display the main menu options" << std::endl;
-}
-
-// Menu action control
-void MenuControl(IADLXPerformanceMonitoringServicesPtr perfMonitoringServices, IADLXGPUPtr oneGPU)
-{
-    int num = 0;
-    while ((num = getchar()) != 'q' && num != 'Q')
-    {
-        switch (num)
-        {
-        // Show GPU metrics range
-        case '1':
-            ShowGPUMetricsRange(perfMonitoringServices, oneGPU);
-            break;
-
-        // Display current GPU metrics
-        case '2':
-            ShowCurrentGPUMetrics(perfMonitoringServices, oneGPU);
-            break;
-
-        // Display current GPU metrics from historical data
-        case '3':
-            ShowCurrentGPUMetricsFromHistorical(perfMonitoringServices, oneGPU);
-            break;
-
-        // Display historical GPU metrics
-        case '4':
-            ShowHistoricalGPUMetrics(perfMonitoringServices, oneGPU);
-            break;
-
-        // 	Display menu options
-        case 'm':
-        case 'M':
-            MainMenu();
-            break;
-        default:
-            break;
-        }
-    }
-}
 
 // Wait for exit with error message
 int WaitAndExit(const char* msg, const int retCode)
@@ -159,94 +30,6 @@ int WaitAndExit(const char* msg, const int retCode)
     return retCode;
 }
 
-// Display GPU metrics range
-void ShowGPUMetricsRange(IADLXPerformanceMonitoringServicesPtr perfMonitoringServices, IADLXGPUPtr oneGPU)
-{
-    // Get GPU metrics support
-    IADLXGPUMetricsSupportPtr gpuMetricsSupport;
-    ADLX_RESULT res = perfMonitoringServices->GetSupportedGPUMetrics(oneGPU, &gpuMetricsSupport);
-    if (ADLX_SUCCEEDED(res))
-    {
-        adlx_int minValue = 0, maxValue = 0;
-
-        // Get GPU usage range
-        res = gpuMetricsSupport->GetGPUUsageRange(&minValue, &maxValue);
-        if (ADLX_SUCCEEDED(res))
-            std::cout << "The GPU usage range between " << minValue << "% and " << maxValue << "%" << std::endl;
-        else if (res == ADLX_NOT_SUPPORTED)
-            std::cout << "Don't support GPU usage range" << std::endl;
-
-        // Get GPU clock speed range
-        res = gpuMetricsSupport->GetGPUClockSpeedRange(&minValue, &maxValue);
-        if (ADLX_SUCCEEDED(res))
-            std::cout << "The GPU clock speed range between " << minValue << "MHz and " << maxValue << "MHz" << std::endl;
-        else if (res == ADLX_NOT_SUPPORTED)
-            std::cout << "Don't support GPU clock speed range" << std::endl;
-
-        // Get GPU VRAM clock speed range
-        res = gpuMetricsSupport->GetGPUVRAMClockSpeedRange(&minValue, &maxValue);
-        if (ADLX_SUCCEEDED(res))
-            std::cout << "The GPU VRAM clock speed range between " << minValue << "MHz and " << maxValue << "MHz" << std::endl;
-        else if (res == ADLX_NOT_SUPPORTED)
-            std::cout << "Don't support GPU VRAM clock speed range" << std::endl;
-
-        // Get GPU temperature range
-        res = gpuMetricsSupport->GetGPUTemperatureRange(&minValue, &maxValue);
-        if (ADLX_SUCCEEDED(res))
-            std::cout << "The GPU temperature range between " << minValue << g_degree << "C and " << maxValue << g_degree << "C" << std::endl;
-        else if (res == ADLX_NOT_SUPPORTED)
-            std::cout << "Don't support GPU temperature range" << std::endl;
-
-        // Get GPU hotspot temperature range
-        res = gpuMetricsSupport->GetGPUHotspotTemperatureRange(&minValue, &maxValue);
-        if (ADLX_SUCCEEDED(res))
-            std::cout << "The GPU hotspot temperature range between " << minValue << g_degree << "C and " << maxValue << g_degree << "C" << std::endl;
-        else if (res == ADLX_NOT_SUPPORTED)
-            std::cout << "Don't support GPU hotspot temperature range" << std::endl;
-
-        // Get GPU power range
-        res = gpuMetricsSupport->GetGPUPowerRange(&minValue, &maxValue);
-        if (ADLX_SUCCEEDED(res))
-            std::cout << "The GPU power range between " << minValue << "W and " << maxValue << "W" << std::endl;
-        else if (res == ADLX_NOT_SUPPORTED)
-            std::cout << "Don't support GPU power range" << std::endl;
-
-        // Get GPU fan speed range
-        res = gpuMetricsSupport->GetGPUFanSpeedRange(&minValue, &maxValue);
-        if (ADLX_SUCCEEDED(res))
-            std::cout << "The GPU fan speed range between " << minValue << "RPM and " << maxValue << "RPM" << std::endl;
-        else if (res == ADLX_NOT_SUPPORTED)
-            std::cout << "Don't support GPU fan speed range" << std::endl;
-
-        // Get GPU VRAM range
-        res = gpuMetricsSupport->GetGPUVRAMRange(&minValue, &maxValue);
-        if (ADLX_SUCCEEDED(res))
-            std::cout << "The GPU VRAM range between " << minValue << "MB and " << maxValue << "MB" << std::endl;
-        else if (res == ADLX_NOT_SUPPORTED)
-            std::cout << "Don't support GPU VRAM range" << std::endl;
-
-        // Get GPU voltage range
-        res = gpuMetricsSupport->GetGPUVoltageRange(&minValue, &maxValue);
-        if (ADLX_SUCCEEDED(res))
-            std::cout << "The GPU voltage range between " << minValue << "mV and " << maxValue << "mV" << std::endl;
-        else if (res == ADLX_NOT_SUPPORTED)
-            std::cout << "Don't support GPU voltage range" << std::endl;
-
-        // Get GPU total board power range
-        res = gpuMetricsSupport->GetGPUTotalBoardPowerRange(&minValue, &maxValue);
-        if (ADLX_SUCCEEDED(res))
-            std::cout << "The GPU total board power range between " << minValue << "W and " << maxValue << "W" << std::endl;
-        else if (res == ADLX_NOT_SUPPORTED)
-            std::cout << "Don't support GPU total board power range" << std::endl;
-
-        // Get GPU intake temperature range
-        res = gpuMetricsSupport->GetGPUIntakeTemperatureRange (&minValue, &maxValue);
-        if (ADLX_SUCCEEDED (res))
-            std::cout << "The GPU intake temperature range between " << minValue << g_degree << "C and " << maxValue << g_degree << "C" << std::endl;
-        else if (res == ADLX_NOT_SUPPORTED)
-            std::cout << "Don't support GPU intake temperature range" << std::endl;
-    }
-}
 
 // Display the system time stamp (in ms)
 void GetTimeStamp(IADLXGPUMetricsPtr gpuMetrics)
@@ -258,20 +41,29 @@ void GetTimeStamp(IADLXGPUMetricsPtr gpuMetrics)
 }
 
 // Display GPU usage (in %)
-void ShowGPUUsage(IADLXGPUMetricsSupportPtr gpuMetricsSupport, IADLXGPUMetricsPtr gpuMetrics)
+void ShowGPUUsage(IADLXGPUMetricsSupportPtr gpuMetricsSupport, IADLXGPUMetricsPtr gpuMetrics, adlx_bool verbose = true)
 {
     adlx_bool supported = false;
     // Display GPU usage support status
     ADLX_RESULT res = gpuMetricsSupport->IsSupportedGPUUsage(&supported);
     if (ADLX_SUCCEEDED(res))
     {
-        std::cout << "GPU usage support status: " << supported << std::endl;
         if (supported)
         {
             adlx_double usage = 0;
             res = gpuMetrics->GPUUsage(&usage);
             if (ADLX_SUCCEEDED(res))
-                std::cout << "The GPU usage is: " << usage << "%" << std::endl;
+            {
+                if (verbose)
+                {
+                    std::cout << "GPU usage support status: " << supported << std::endl;
+                    std::cout << "The GPU usage is: " << usage << "%" << std::endl;
+                } else {
+                    std::cout << usage << std::endl;
+                }
+            }
+        } else {
+            std::cout << "ERROR: GPU usage query not supported" << std::endl;
         }
     }
 }
@@ -315,7 +107,7 @@ void ShowGPUVRAMClockSpeed(IADLXGPUMetricsSupportPtr gpuMetricsSupport, IADLXGPU
 }
 
 // Display GPU temperature(in °C)
-void ShowGPUTemperature(IADLXGPUMetricsSupportPtr gpuMetricsSupport, IADLXGPUMetricsPtr gpuMetrics)
+void ShowGPUTemperature(IADLXGPUMetricsSupportPtr gpuMetricsSupport, IADLXGPUMetricsPtr gpuMetrics, adlx_bool verbose = true)
 {
     adlx_bool supported = false;
 
@@ -323,13 +115,23 @@ void ShowGPUTemperature(IADLXGPUMetricsSupportPtr gpuMetricsSupport, IADLXGPUMet
     ADLX_RESULT res = gpuMetricsSupport->IsSupportedGPUTemperature(&supported);
     if (ADLX_SUCCEEDED(res))
     {
-        std::cout << "GPU temperature support status: " << supported << std::endl;
+
         if (supported)
         {
             adlx_double temperature = 0;
             res = gpuMetrics->GPUTemperature(&temperature);
             if (ADLX_SUCCEEDED(res))
-                std::cout << "The GPU temperature is: " << temperature << g_degree <<"C" << std::endl;
+            {
+                if (verbose)
+                {
+                    std::cout << "GPU temperature support status: " << supported << std::endl;
+                    std::cout << "The GPU temperature is: " << temperature << g_degree <<"C" << std::endl;
+                } else {
+                    std::cout << temperature << std::endl;
+                }
+            }
+        } else {
+            std::cout << "ERROR: GPU VRAM query not supported" << std::endl;
         }
     }
 }
@@ -432,20 +234,29 @@ void ShowGPUFanSpeed(IADLXGPUMetricsSupportPtr gpuMetricsSupport, IADLXGPUMetric
 }
 
 // Display GPU VRAM (in MB)
-void ShowGPUVRAM(IADLXGPUMetricsSupportPtr gpuMetricsSupport, IADLXGPUMetricsPtr gpuMetrics)
+void ShowGPUVRAM(IADLXGPUMetricsSupportPtr gpuMetricsSupport, IADLXGPUMetricsPtr gpuMetrics, adlx_bool verbose = true)
 {
     adlx_bool supported = false;
     // Display GPU VRAM support status
     ADLX_RESULT res = gpuMetricsSupport->IsSupportedGPUVRAM(&supported);
     if (ADLX_SUCCEEDED(res))
     {
-        std::cout << "GPU VRAM support status: " << supported << std::endl;
         if (supported)
         {
             adlx_int VRAM = 0;
             res = gpuMetrics->GPUVRAM(&VRAM);
             if (ADLX_SUCCEEDED(res))
-                std::cout << "The GPU VRAM is: " << VRAM << "MB" << std::endl;
+            {
+                if (verbose)
+                {
+                    std::cout << "GPU VRAM support status: " << supported << std::endl;
+                    std::cout << "The GPU VRAM is: " << VRAM << "MB" << std::endl;
+                } else {
+                    std::cout << VRAM << std::endl;
+                }
+            }
+        } else {
+            std::cout << "ERROR: GPU VRAM query not supported" << std::endl;
         }
     }
 }
@@ -469,185 +280,91 @@ void ShowGPUVoltage(IADLXGPUMetricsSupportPtr gpuMetricsSupport, IADLXGPUMetrics
     }
 }
 
-// Display current GPU metrics
-void ShowCurrentGPUMetrics(IADLXPerformanceMonitoringServicesPtr perfMonitoringServices, IADLXGPUPtr oneGPU)
+
+
+int main(int argc, char* argv[])
 {
-    // Get GPU metrics support
-    IADLXGPUMetricsSupportPtr gpuMetricsSupport;
-    ADLX_RESULT res1 = perfMonitoringServices->GetSupportedGPUMetrics(oneGPU, &gpuMetricsSupport);
-
-    // Accumulate and display current metrics for each of 10 loops
-    IADLXGPUMetricsPtr gpuMetrics;
-    for (int i = 0; i < 10; ++i)
-    {
-        // Clear screen
-        system("cls");
-        // Get current GPU metrics
-        ADLX_RESULT res2 = perfMonitoringServices->GetCurrentGPUMetrics(oneGPU, &gpuMetrics);
-
-        // Display timestamp and GPU metrics
-        if (ADLX_SUCCEEDED(res1) && ADLX_SUCCEEDED(res2))
-        {
-            std::cout << "The current GPU metrics: " << std::endl;
-            std::cout << std::boolalpha;  // Display boolean variable as true or false
-            GetTimeStamp(gpuMetrics);
-            ShowGPUUsage(gpuMetricsSupport, gpuMetrics);
-            ShowGPUClockSpeed(gpuMetricsSupport, gpuMetrics);
-            ShowGPUVRAMClockSpeed(gpuMetricsSupport, gpuMetrics);
-            ShowGPUTemperature(gpuMetricsSupport, gpuMetrics);
-            ShowGPUHotspotTemperature(gpuMetricsSupport, gpuMetrics);
-            ShowGPUPower(gpuMetricsSupport, gpuMetrics);
-            ShowGPUFanSpeed(gpuMetricsSupport, gpuMetrics);
-            ShowGPUVRAM(gpuMetricsSupport, gpuMetrics);
-            ShowGPUVoltage(gpuMetricsSupport, gpuMetrics);
-            ShowGPUTotalBoardPower(gpuMetricsSupport, gpuMetrics);
-            ShowGPUIntakeTemperature (gpuMetricsSupport, gpuMetrics);
-            std::cout << std::noboolalpha;
-        }
-        Sleep(1000);
+    adlx_bool verbose = false;
+    if (argc == 3 && std::string(argv[2]).compare("-v") == 0) {
+        verbose = true;
     }
 
-    MainMenu();
-}
+    ADLX_RESULT res = ADLX_FAIL;
 
-void ShowCurrentGPUMetricsFromHistorical(IADLXPerformanceMonitoringServicesPtr perfMonitoringServices, IADLXGPUPtr oneGPU)
-{
-    // Clear historical performance metrics data
-    ADLX_RESULT res = perfMonitoringServices->ClearPerformanceMetricsHistory();
-    if (ADLX_FAILED(res))
-    {
-        std::cout << "Clear historical data failed" << std::endl;
-        return;
-    }
+    // Initialize ADLX
+    res = g_ADLXHelp.Initialize();
 
-    // Start tracking performance metrics
-    res = perfMonitoringServices->StartPerformanceMetricsTracking();
-    if (ADLX_FAILED(res))
-    {
-        std::cout << "Start tracking performance metrics failed" << std::endl;
-        return;
-    }
-
-    // Get GPU metrics support
-    IADLXGPUMetricsSupportPtr gpuMetricsSupport;
-    ADLX_RESULT metricsSupportRet = perfMonitoringServices->GetSupportedGPUMetrics(oneGPU, &gpuMetricsSupport);
-
-    // Accumulate and display current metrics for each of 10 loops
-    adlx_int startMs = 0;
-    adlx_int stopMs = 0;
-    for (int it = 0; it < 10; ++it)
-    {
-        // Clear screen
-        system("cls");
-
-        IADLXGPUMetricsListPtr gpuMetricsList;
-        res = perfMonitoringServices->GetGPUMetricsHistory(oneGPU, startMs, stopMs, &gpuMetricsList);
-
-        // Display all the GPU metrics in the list
-        IADLXGPUMetricsPtr gpuMetrics;
-        for (int i = gpuMetricsList->Begin(); i != gpuMetricsList->End(); ++i)
-        {
-            res = gpuMetricsList->At(i, &gpuMetrics);
-            // Display timestamp and GPU metrics
-            if (ADLX_SUCCEEDED(metricsSupportRet) && ADLX_SUCCEEDED(res))
-            {
-                std::cout << "The current GPU metrics: " << std::endl;
-                std::cout << std::boolalpha;  // Display boolean variable as true or false
-                GetTimeStamp(gpuMetrics);
-                ShowGPUUsage(gpuMetricsSupport, gpuMetrics);
-                ShowGPUClockSpeed(gpuMetricsSupport, gpuMetrics);
-                ShowGPUVRAMClockSpeed(gpuMetricsSupport, gpuMetrics);
-                ShowGPUTemperature(gpuMetricsSupport, gpuMetrics);
-                ShowGPUHotspotTemperature(gpuMetricsSupport, gpuMetrics);
-                ShowGPUPower(gpuMetricsSupport, gpuMetrics);
-                ShowGPUFanSpeed(gpuMetricsSupport, gpuMetrics);
-                ShowGPUVRAM(gpuMetricsSupport, gpuMetrics);
-                ShowGPUVoltage(gpuMetricsSupport, gpuMetrics);
-                ShowGPUTotalBoardPower(gpuMetricsSupport, gpuMetrics);
-                ShowGPUIntakeTemperature(gpuMetricsSupport, gpuMetrics);
-                std::cout << std::noboolalpha;
-            }
-            std::cout << std::endl;
-        }
-
-        Sleep(1000);
-    }
-
-    // Stop tracking performance metrics
-    res = perfMonitoringServices->StopPerformanceMetricsTracking();
-    if (ADLX_FAILED(res))
-    {
-        std::cout << "Stop tracking performance metrics failed" << std::endl;
-    }
-
-    MainMenu();
-}
-
-// Display historical GPU Metrics
-void ShowHistoricalGPUMetrics(IADLXPerformanceMonitoringServicesPtr perfMonitoringServices, IADLXGPUPtr oneGPU)
-{
-    // Clear historical performance metrics data
-    ADLX_RESULT res = perfMonitoringServices->ClearPerformanceMetricsHistory();
-    if (ADLX_FAILED(res))
-    {
-        std::cout << "Clear historical data failed" << std::endl;
-        return;
-    }
-
-    // Start tracking performance metrics
-    res = perfMonitoringServices->StartPerformanceMetricsTracking();
-    if (ADLX_FAILED(res))
-    {
-        std::cout << "Start tracking performance metrics failed" << std::endl;
-        return;
-    }
-
-    // Wait for 10 seconds to accumulate metrics
-    std::cout << "Wait for 10 seconds to accumulate metrics..." << std::endl;
-    Sleep(10000);
-
-    // Get GPU metrics history from 10 seconds ago(10000 ms: the second parameter) to the present time(0 ms: the third parameter)
-    IADLXGPUMetricsListPtr gpuMetricsList;
-    res = perfMonitoringServices->GetGPUMetricsHistory(oneGPU, 10000, 0, &gpuMetricsList);
     if (ADLX_SUCCEEDED(res))
     {
-        // Get GPU metrics support
-        IADLXGPUMetricsSupportPtr gpuMetricsSupport;
-        ADLX_RESULT res1 = perfMonitoringServices->GetSupportedGPUMetrics(oneGPU, &gpuMetricsSupport);
-
-        // Display all the GPU metrics in the list
-        IADLXGPUMetricsPtr gpuMetrics;
-        for (int i = gpuMetricsList->Begin(); i != gpuMetricsList->End(); ++i)
+        // Get Performance Monitoring services
+        IADLXPerformanceMonitoringServicesPtr perfMonitoringService;
+        res = g_ADLXHelp.GetSystemServices()->GetPerformanceMonitoringServices(&perfMonitoringService);
+        if (ADLX_SUCCEEDED(res))
         {
-            std::cout << "********** historical GPU metrics " << i + 1 << ": **********" << std::endl;
-            ADLX_RESULT res2 = gpuMetricsList->At(i, &gpuMetrics);
-            // Display timestamp and GPU metrics
-            if (ADLX_SUCCEEDED(res1) && ADLX_SUCCEEDED(res2))
+            IADLXGPUListPtr gpus;
+            // Get GPU list
+            res = g_ADLXHelp.GetSystemServices()->GetGPUs(&gpus);
+            if (ADLX_SUCCEEDED(res))
             {
-                std::cout << std::boolalpha;  // Display boolean variable as true or false
-                GetTimeStamp(gpuMetrics);
-                ShowGPUUsage(gpuMetricsSupport, gpuMetrics);
-                ShowGPUClockSpeed(gpuMetricsSupport, gpuMetrics);
-                ShowGPUVRAMClockSpeed(gpuMetricsSupport, gpuMetrics);
-                ShowGPUTemperature(gpuMetricsSupport, gpuMetrics);
-                ShowGPUHotspotTemperature(gpuMetricsSupport, gpuMetrics);
-                ShowGPUPower(gpuMetricsSupport, gpuMetrics);
-                ShowGPUFanSpeed(gpuMetricsSupport, gpuMetrics);
-                ShowGPUVRAM(gpuMetricsSupport, gpuMetrics);
-                ShowGPUVoltage(gpuMetricsSupport, gpuMetrics);
-                ShowGPUTotalBoardPower(gpuMetricsSupport, gpuMetrics);
-                ShowGPUIntakeTemperature(gpuMetricsSupport, gpuMetrics);
-                std::cout << std::noboolalpha;
-            }
-            std::cout << std::endl;
-        }
-    }
+                // Use the first GPU in the list
+                IADLXGPUPtr oneGPU;
+                res = gpus->At(gpus->Begin(), &oneGPU);
+                if (ADLX_SUCCEEDED(res))
+                {
+                    // Get GPU metrics support
+                    IADLXGPUMetricsSupportPtr gpuMetricsSupport;
+                    ADLX_RESULT res1 = perfMonitoringService->GetSupportedGPUMetrics(oneGPU, &gpuMetricsSupport);
 
-    // Stop tracking performance metrics
-    res = perfMonitoringServices->StopPerformanceMetricsTracking();
-    if (ADLX_FAILED(res))
-    {
-        std::cout << "Stop tracking performance metrics failed" << std::endl;
-        return;
+                    // Get current GPU metrics
+                    IADLXGPUMetricsPtr gpuMetrics;
+                    ADLX_RESULT res2 = perfMonitoringService->GetCurrentGPUMetrics(oneGPU, &gpuMetrics);
+
+                    // Display timestamp and GPU metrics
+                    if (ADLX_SUCCEEDED(res1) && ADLX_SUCCEEDED(res2))
+                    {
+                        if (argc == 1) {
+                            std::cout << "The current GPU metrics: " << std::endl;
+                            std::cout << std::boolalpha;  // Display boolean variable as true or false
+                            GetTimeStamp(gpuMetrics);
+                            ShowGPUUsage(gpuMetricsSupport, gpuMetrics);
+                            ShowGPUClockSpeed(gpuMetricsSupport, gpuMetrics);
+                            ShowGPUVRAMClockSpeed(gpuMetricsSupport, gpuMetrics);
+                            ShowGPUTemperature(gpuMetricsSupport, gpuMetrics);
+                            ShowGPUHotspotTemperature(gpuMetricsSupport, gpuMetrics);
+                            ShowGPUPower(gpuMetricsSupport, gpuMetrics);
+                            ShowGPUFanSpeed(gpuMetricsSupport, gpuMetrics);
+                            ShowGPUVRAM(gpuMetricsSupport, gpuMetrics);
+                            ShowGPUVoltage(gpuMetricsSupport, gpuMetrics);
+                            ShowGPUTotalBoardPower(gpuMetricsSupport, gpuMetrics);
+                            ShowGPUIntakeTemperature (gpuMetricsSupport, gpuMetrics);
+                            std::cout << std::noboolalpha;
+                        } else {
+                            if (std::string(argv[1]).compare("--gpu_usage") == 0) {
+                                ShowGPUUsage(gpuMetricsSupport, gpuMetrics, verbose);
+                            } else if (std::string(argv[1]).compare("--gpu_mem_usage") == 0) {
+                                ShowGPUVRAM(gpuMetricsSupport, gpuMetrics, verbose);
+                            } else if (std::string(argv[1]).compare("--gpu_temp") == 0) {
+                                ShowGPUTemperature(gpuMetricsSupport, gpuMetrics, verbose);
+                            } else {
+                                std::cout << "Argument `" << argv[1] << "` is not reconised." << std::endl;
+                            }
+                        }
+                    }
+                }
+                else
+                    std::cout << "\tGet particular GPU failed" << std::endl;
+            }
+            else
+                std::cout << "\tGet GPU list failed" << std::endl;
+        }
+        else
+            std::cout << "\tGet performance monitoring services failed" << std::endl;
     }
+    else
+        return WaitAndExit("\tg_ADLXHelp initialize failed", 0);
+
+    // Destroy ADLX
+    res = g_ADLXHelp.Terminate();
+
+    return 0;
 }
