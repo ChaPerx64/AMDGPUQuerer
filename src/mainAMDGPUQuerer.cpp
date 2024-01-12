@@ -20,14 +20,13 @@ static const signed char g_degree = 248;
 
 
 // Wait for exit with error message
-int WaitAndExit(const char* msg, const int retCode)
+void WaitAndExit(std::string msg)
 {
     // Printout the message and pause to see it before returning the desired code
-    if (nullptr != msg)
+    if (msg.compare("") != 0)
         std::cout << msg << std::endl;
 
     system("pause");
-    return retCode;
 }
 
 
@@ -289,6 +288,9 @@ int main(int argc, char* argv[])
         verbose = true;
     }
 
+    std::string error_message = "";
+    adlx_double exit_code = 0;
+
     ADLX_RESULT res = ADLX_FAIL;
 
     // Initialize ADLX
@@ -351,18 +353,30 @@ int main(int argc, char* argv[])
                         }
                     }
                 }
-                else
-                    std::cout << "\tGet particular GPU failed" << std::endl;
+                else {
+                    error_message = "Get particular GPU failed";
+                    exit_code = 4;
+                }
             }
-            else
-                std::cout << "\tGet GPU list failed" << std::endl;
+            else {
+                error_message = "Get GPU list failed";
+                exit_code = 3;
+            }
         }
-        else
-            std::cout << "\tGet performance monitoring services failed" << std::endl;
+        else {
+            error_message = "Get performance monitoring services failed";
+            exit_code = 2;
+        }
     }
-    else
-        return WaitAndExit("\tg_ADLXHelp initialize failed", 0);
+    else {
+        error_message = "g_ADLXHelp initialize failed";
+        exit_code = 1;
+    }
 
+    if (exit_code !=0) {
+        std::cout << error_message << std::endl;
+        return exit_code;
+    }
     // Destroy ADLX
     res = g_ADLXHelp.Terminate();
 
