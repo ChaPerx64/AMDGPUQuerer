@@ -260,6 +260,24 @@ void ShowGPUVRAM(IADLXGPUMetricsSupportPtr gpuMetricsSupport, IADLXGPUMetricsPtr
     }
 }
 
+// Display total GPU VRAM (in MB)
+void ShowTotalGPUVRAM(IADLXGPUMetricsSupportPtr gpuMetricsSupport, adlx_bool verbose = true)
+{
+    adlx_int minValue = 0, maxValue = 0;
+    ADLX_RESULT res = gpuMetricsSupport->GetGPUVRAMRange(&minValue, &maxValue);
+    if (ADLX_SUCCEEDED(res))
+    {
+        if (verbose)
+        {
+            std::cout << "Total GPU VRAM is: " << maxValue << "MB" << std::endl;
+        } else {
+            std::cout << maxValue << std::endl;
+        }
+    } else {
+        std::cout << "ERROR: Total GPU VRAM query not supported" << std::endl;
+    }
+}
+
 // Display GPU Voltage (in mV)
 void ShowGPUVoltage(IADLXGPUMetricsSupportPtr gpuMetricsSupport, IADLXGPUMetricsPtr gpuMetrics)
 {
@@ -336,6 +354,7 @@ int main(int argc, char* argv[])
                             ShowGPUPower(gpuMetricsSupport, gpuMetrics);
                             ShowGPUFanSpeed(gpuMetricsSupport, gpuMetrics);
                             ShowGPUVRAM(gpuMetricsSupport, gpuMetrics);
+                            ShowTotalGPUVRAM(gpuMetricsSupport);
                             ShowGPUVoltage(gpuMetricsSupport, gpuMetrics);
                             ShowGPUTotalBoardPower(gpuMetricsSupport, gpuMetrics);
                             ShowGPUIntakeTemperature (gpuMetricsSupport, gpuMetrics);
@@ -345,6 +364,8 @@ int main(int argc, char* argv[])
                                 ShowGPUUsage(gpuMetricsSupport, gpuMetrics, verbose);
                             } else if (std::string(argv[1]).compare("--gpu_mem_usage") == 0) {
                                 ShowGPUVRAM(gpuMetricsSupport, gpuMetrics, verbose);
+                            } else if (std::string(argv[1]).compare("--gpu_mem_total") == 0) {
+                                ShowTotalGPUVRAM(gpuMetricsSupport, verbose);
                             } else if (std::string(argv[1]).compare("--gpu_temp") == 0) {
                                 ShowGPUTemperature(gpuMetricsSupport, gpuMetrics, verbose);
                             } else {
